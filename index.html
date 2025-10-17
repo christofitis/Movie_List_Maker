@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie List Maker!</title>
+
+    <style>
+        /* --- Modern Dark Mode Theme --- */
+        :root {
+            --bg-main: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-card: #252525;
+            --bg-accent: #2a2a2a;
+            --border: #333;
+            --text: #e5e5e5;
+            --text-muted: #9b9b9b;
+            --accent-blue: #4da3ff;
+            --accent-red: #ff5c5c;
+            --accent-green: #00b894;
+            --shadow: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Basic layout and typography */
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        h1,
+        h2 {
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        /* Main layout container */
+        #app-container {
+            display: flex;
+            flex-grow: 1;
+            height: calc(100vh - 80px);
+        }
+
+        header {
+            background-color: var(--bg-panel);
+            padding: 10px 30px;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 6px var(--shadow);
+            height: 60px;
+            box-sizing: border-box;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            color: var(--accent-blue);
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 300px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px var(--shadow);
+            flex-shrink: 0;
+        }
+
+        #sidebar h2 {
+            font-size: 1.1rem;
+            color: var(--accent-blue);
+        }
+
+        #sidebar p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* Main content */
+        #main-content {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #main-content h2 {
+            font-size: 1.2rem;
+            color: var(--accent-red);
+        }
+
+        #main-content p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* Input area */
+        #add-task-area {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        #new-task-title {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border);
+            background-color: var(--bg-accent);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        #new-task-title::placeholder {
+            color: var(--text-muted);
+        }
+
+        #add-task-btn {
+            padding: 10px 15px;
+            margin-left: 10px;
+            background: linear-gradient(135deg, var(--accent-blue), #2979ff);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        #add-task-btn:hover {
+            background: linear-gradient(135deg, #5cb3ff, #3a8cff);
+            box-shadow: 0 0 8px rgba(77, 163, 255, 0.5);
+        }
+
+        /* Task lists */
+        .task-list {
+            list-style: none;
+            padding: 10px;
+            margin: 0;
+            min-height: 100px;
+            background-color: var(--bg-accent);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        #sidebar-list {
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            min-height: 50px;
+        }
+
+        /* Card styling */
+        .card {
+            background-color: var(--bg-card);
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px var(--shadow);
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px var(--shadow);
+        }
+
+        .card:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-title {
+            flex-grow: 1;
+            overflow-wrap: break-word;
+            margin-right: 10px;
+        }
+
+        /* Card accent borders */
+        #sidebar-list .card {
+            border-left: 4px solid var(--accent-blue);
+            /* position: relative;
+    padding-left: 40px; Make space for the number */
+        }
+
+        #priority-list {
+            counter-reset: card-counter;
+        }
+
+
+        #priority-list .card {
+            border-left: 4px solid var(--accent-red);
+            counter-increment: card-counter;
+            position: relative;
+            padding-left: 40px;
+            /* Make space for the number */
+        }
+
+        #priority-list .card::before {
+            content: counter(card-counter) ".";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.95rem;
+            width: 20px;
+            text-align: right;
+        }
+
+        /* Number the cards in the priority list */
+        /* Drag state */
+        .card.dragging {
+            opacity: 0.4;
+            box-shadow: 0 6px 14px var(--shadow);
+            cursor: grabbing;
+        }
+
+        /* Card controls */
+        .card-controls {
+            display: flex;
+            align-items: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .card:hover .card-controls {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Buttons inside cards */
+        .move-btn {
+            cursor: pointer;
+            color: var(--text-muted);
+            font-weight: bold;
+            font-size: 1.2rem;
+            padding: 0 4px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .move-btn:hover {
+            color: var(--accent-green);
+        }
+
+        .remove-btn {
+            cursor: pointer;
+            color: var(--accent-red);
+            font-weight: bold;
+            font-size: 1.4rem;
+            padding: 0 4px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .remove-btn:hover {
+            color: #ff7675;
+        }
+
+        /* Sidebar remove visibility */
+        #sidebar-list .card:hover .remove-btn {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Button bar */
+        #button-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        #button-bar button {
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        #clear-data-btn {
+            background-color: var(--accent-red);
+            color: white;
+        }
+
+        #clear-data-btn:hover {
+            background-color: #ff7675;
+            box-shadow: 0 0 8px rgba(255, 92, 92, 0.4);
+        }
+
+        #export-btn {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+
+        #export-btn:hover {
+            background-color: #5cb3ff;
+            box-shadow: 0 0 8px rgba(77, 163, 255, 0.4);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-panel);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Movie List Maker!</h1>
+    </header>
+
+    <div id="app-container">
+        <aside id="sidebar">
+            <h2>All Movies (A-Z)</h2>
+            <p style="font-size: 0.9rem; color: #777;">Drag movies to the list to move them. Drag them back here to
+                un-prioritize.</p>
+            <ul id="sidebar-list" class="task-list">
+            </ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="add-task-area">
+                <input type="text" id="new-task-title" placeholder="Enter a new movie to add...">
+                <button id="add-task-btn">Add Movie</button>
+            </section>
+
+            <h2>Movie List 🎬</h2>
+            <p style="font-size: 0.9rem; color: #777;">Drag movies to re-order them, or use the ↑↓ arrows.</p>
+            <ul id="priority-list" class="task-list">
+            </ul>
+
+            <div id="button-bar">
+                <button id="export-btn">Export to .txt</button>
+                <button id="clear-data-btn">Clear All Saved Data</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const addTaskBtn = document.getElementById('add-task-btn');
+            const newTaskInput = document.getElementById('new-task-title');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarList = document.getElementById('sidebar-list');
+            const priorityList = document.getElementById('priority-list');
+            const clearDataBtn = document.getElementById('clear-data-btn');
+            const exportBtn = document.getElementById('export-btn');
+
+            let currentlyDragging = null;
+            const STORAGE_KEY = 'priorityManagerState';
+
+            addTaskBtn.addEventListener('click', addNewTask);
+            newTaskInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    addNewTask();
+                }
+            });
+
+            function addNewTask() {
+                const taskTitle = newTaskInput.value.trim();
+                if (taskTitle === '') {
+                    alert('Please enter a task title.');
+                    return;
+                }
+
+                // Check *both* lists for duplicates
+                const existingSidebarTasks = Array.from(sidebarList.querySelectorAll('.card-title'));
+                const existingPriorityTasks = Array.from(priorityList.querySelectorAll('.card-title'));
+                const allTasks = existingSidebarTasks.concat(existingPriorityTasks);
+
+                if (allTasks.some(el => el.textContent === taskTitle)) {
+                    alert('This task already exists.');
+                    return;
+                }
+
+                const newCard = createSidebarCardElement(taskTitle);
+                sidebarList.appendChild(newCard);
+
+                sortSidebar();
+                newTaskInput.value = '';
+                newTaskInput.focus();
+
+                saveState();
+            }
+
+
+
+            function createSidebarCardElement(title) {
+                const card = document.createElement('li');
+                card.className = 'card';
+                card.draggable = true;
+                card.dataset.taskTitle = title;
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'card-title';
+                titleSpan.textContent = title;
+
+                const controls = document.createElement('div');
+                controls.className = 'card-controls';
+
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.title = 'Permanently delete';
+
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Permanently delete "${title}"?`)) {
+                        card.remove();
+                        saveState();
+                    }
+                });
+
+                controls.appendChild(removeBtn);
+                card.appendChild(titleSpan);
+                card.appendChild(controls);
+
+                addDragListeners(card);
+                return card;
+            }
+
+            function createPriorityCardElement(title) {
+                const card = document.createElement('li');
+                card.className = 'card';
+                card.draggable = true;
+                card.dataset.taskTitle = title;
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'card-title';
+                titleSpan.textContent = title;
+
+                const controls = document.createElement('div');
+                controls.className = 'card-controls';
+
+                const sendToTopBtn = document.createElement('span');
+                sendToTopBtn.className = 'move-btn';
+                sendToTopBtn.innerHTML = '&#8593;'; // Up arrow ↑
+                sendToTopBtn.title = 'Send to top';
+                sendToTopBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    priorityList.prepend(card);
+                    saveState();
+                });
+
+                const sendToBottomBtn = document.createElement('span');
+                sendToBottomBtn.className = 'move-btn';
+                sendToBottomBtn.innerHTML = '&#8595;'; // Down arrow ↓
+                sendToBottomBtn.title = 'Send to bottom';
+                sendToBottomBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    priorityList.appendChild(card);
+                    saveState();
+                });
+
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.title = 'Remove from priority (moves to sidebar)';
+
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveCardToSidebar(card);
+                });
+
+                controls.appendChild(sendToTopBtn);
+                controls.appendChild(sendToBottomBtn);
+                controls.appendChild(removeBtn);
+
+                card.appendChild(titleSpan);
+                card.appendChild(controls);
+
+                addDragListeners(card);
+                return card;
+            }
+
+            function moveCardToSidebar(priorityCard) {
+                const taskTitle = priorityCard.dataset.taskTitle;
+
+                const existingTasks = Array.from(sidebarList.querySelectorAll('.card-title'));
+                const alreadyExists = existingTasks.some(el => el.textContent === taskTitle);
+
+                if (!alreadyExists) {
+                    const newSidebarCard = createSidebarCardElement(taskTitle);
+                    sidebarList.appendChild(newSidebarCard);
+                    sortSidebar();
+                }
+
+                priorityCard.remove();
+                saveState();
+            }
+
+            function sortSidebar() {
+                const cards = Array.from(sidebarList.children);
+                cards.sort((a, b) => {
+                    return a.dataset.taskTitle.localeCompare(b.dataset.taskTitle);
+                });
+                cards.forEach(card => sidebarList.appendChild(card));
+            }
+
+            function addDragListeners(card) {
+
+                card.addEventListener('dragstart', (e) => {
+                    currentlyDragging = card;
+                    // Store the original list ID
+                    currentlyDragging.dataset.originList = card.parentElement.id;
+                    card.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', card.dataset.taskTitle);
+                });
+
+
+                card.addEventListener('dragend', () => {
+                    if (currentlyDragging) {
+                        currentlyDragging.classList.remove('dragging');
+                        // Clean up the origin data
+                        if (currentlyDragging.dataset.originList) {
+                            delete currentlyDragging.dataset.originList;
+                        }
+                    }
+                    currentlyDragging = null;
+                });
+            }
+
+            // This is now back to providing visual feedback
+            priorityList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (!currentlyDragging) return;
+
+                const afterElement = getDragAfterElement(priorityList, e.clientY);
+                if (afterElement == null) {
+                    priorityList.appendChild(currentlyDragging);
+                } else {
+                    priorityList.insertBefore(currentlyDragging, afterElement);
+                }
+            });
+
+            // This now handles the final placement and card *replacement*
+            priorityList.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!currentlyDragging) return;
+
+                // Check where the card came from
+                const origin = currentlyDragging.dataset.originList;
+
+                // Case 1: Dragging from the sidebar
+                if (origin === 'sidebar-list') {
+                    const taskTitle = currentlyDragging.dataset.taskTitle;
+                    // Create the new card *with* buttons
+                    const newPriorityCard = createPriorityCardElement(taskTitle);
+
+                    // Replace the card (which was moved by dragover) with the new one
+                    priorityList.replaceChild(newPriorityCard, currentlyDragging);
+
+                    // Case 2: Re-ordering within the priority list
+                } else if (origin === 'priority-list') {
+                    // The 'dragover' already moved it, so we just let it be
+                }
+
+                // Cleanup
+                currentlyDragging.classList.remove('dragging');
+                if (currentlyDragging.dataset.originList) {
+                    delete currentlyDragging.dataset.originList;
+                }
+                currentlyDragging = null;
+                saveState(); // Save after any drop/re-order
+            });
+
+            // Listeners for the *ENTIRE* Sidebar (for removal)
+            sidebar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+
+            sidebar.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!currentlyDragging) return;
+
+                // Only act if the card came from the priority list
+                if (currentlyDragging.dataset.originList === 'priority-list') {
+                    moveCardToSidebar(currentlyDragging);
+                }
+
+                // Cleanup
+                currentlyDragging.classList.remove('dragging');
+                if (currentlyDragging.dataset.originList) {
+                    delete currentlyDragging.dataset.originList;
+                }
+                currentlyDragging = null;
+            });
+
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            function saveState() {
+                const sidebarTasks = Array.from(sidebarList.querySelectorAll('.card-title'))
+                    .map(span => span.textContent);
+                const priorityTasks = Array.from(priorityList.querySelectorAll('.card-title'))
+                    .map(span => span.textContent);
+                const state = {
+                    sidebar: sidebarTasks,
+                    priority: priorityTasks
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            }
+
+            function loadState() {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (!savedState) {
+                    return false; // No state found
+                }
+
+                const state = JSON.parse(savedState);
+
+                if (state.sidebar) {
+                    state.sidebar.forEach(title => {
+                        const card = createSidebarCardElement(title);
+                        sidebarList.appendChild(card);
+                    });
+                    sortSidebar();
+                }
+
+                if (state.priority) {
+                    state.priority.forEach(title => {
+                        const card = createPriorityCardElement(title);
+                        priorityList.appendChild(card);
+                    });
+                }
+
+                return true; // State was loaded
+            }
+
+            // Clear All Data
+            clearDataBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    location.reload();
+                }
+            });
+
+            exportBtn.addEventListener('click', exportToTxt);
+
+            function exportToTxt() {
+                const priorityCards = priorityList.querySelectorAll('.card-title');
+
+                if (priorityCards.length === 0) {
+                    alert('List is empty. Nothing to export.');
+                    return;
+                }
+
+                let fileContent = "Movie List\n";
+                fileContent += "=====================\n\n";
+
+                const taskTitles = Array.from(priorityCards)
+                    .map((card, index) => `${index + 1}. ${card.textContent}`);
+
+                fileContent += taskTitles.join('\n');
+
+                const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'priority-list.txt';
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+
+            const stateLoaded = loadState();
+
+            if (!stateLoaded) {
+                sortSidebar();
+                saveState();
+            }
+
+        });
+    </script>
+</body>
+
+</html>
