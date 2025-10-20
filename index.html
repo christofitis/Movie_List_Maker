@@ -101,6 +101,72 @@
             color: var(--text-muted);
         }
 
+        /* --- List Manager --- */
+        #list-manager {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            background-color: var(--bg-accent);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        #list-manager label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        #list-manager select,
+        #list-manager input {
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            background-color: var(--bg-card);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+        
+        #list-manager select {
+             flex-grow: 1;
+        }
+
+        #list-manager input {
+            flex-grow: 2;
+        }
+
+        #list-manager button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        #add-list-btn {
+            background-color: var(--accent-green);
+            color: white;
+        }
+        #add-list-btn:hover {
+             background-color: #00d1a7;
+        }
+
+        #delete-list-btn {
+            background-color: var(--accent-red);
+            color: white;
+            margin-left: auto;
+        }
+         #delete-list-btn:hover {
+             background-color: #ff7675;
+        }
+        /* --- End List Manager --- */
+
+
         /* Input area */
         #add-task-area {
             display: flex;
@@ -190,8 +256,6 @@
         /* Card accent borders */
         #sidebar-list .card {
             border-left: 4px solid var(--accent-blue);
-            /* position: relative;
-    padding-left: 40px; Make space for the number */
         }
 
         #priority-list {
@@ -204,7 +268,6 @@
             counter-increment: card-counter;
             position: relative;
             padding-left: 40px;
-            /* Make space for the number */
         }
 
         #priority-list .card::before {
@@ -220,7 +283,6 @@
             text-align: right;
         }
 
-        /* Number the cards in the priority list */
         /* Drag state */
         .card.dragging {
             opacity: 0.4;
@@ -350,12 +412,21 @@
         </aside>
 
         <main id="main-content">
+
+            <section id="list-manager">
+                 <label for="list-select">Current List:</label>
+                <select id="list-select"></select>
+                <input type="text" id="new-list-name" placeholder="New list name...">
+                <button id="add-list-btn">Add New</button>
+                <button id="delete-list-btn">Delete Current</button>
+            </section>
+
             <section id="add-task-area">
                 <input type="text" id="new-task-title" placeholder="Enter a new movie to add...">
                 <button id="add-task-btn">Add Movie</button>
             </section>
 
-            <h2>Movie List 🎬</h2>
+            <h2 id="priority-list-title">Movie List 🎬</h2>
             <p style="font-size: 0.9rem; color: #777;">Drag movies to re-order them, or use the ↑↓ arrows.</p>
             <ul id="priority-list" class="task-list">
             </ul>
@@ -369,6 +440,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
             const addTaskBtn = document.getElementById('add-task-btn');
             const newTaskInput = document.getElementById('new-task-title');
             const sidebar = document.getElementById('sidebar');
@@ -377,9 +449,22 @@
             const clearDataBtn = document.getElementById('clear-data-btn');
             const exportBtn = document.getElementById('export-btn');
 
-            let currentlyDragging = null;
-            const STORAGE_KEY = 'priorityManagerState';
+            // New List Manager Elements
+            const listSelect = document.getElementById('list-select');
+            const newListInput = document.getElementById('new-list-name');
+            const addListBtn = document.getElementById('add-list-btn');
+            const deleteListBtn = document.getElementById('delete-list-btn');
+            const priorityListTitle = document.getElementById('priority-list-title');
 
+            // --- App State ---
+            let currentlyDragging = null;
+            const STORAGE_KEY = 'movieListAppStorage';
+            let appState = {
+                activeListName: null,
+                lists: {}
+            };
+
+            // --- Event Listeners ---
             addTaskBtn.addEventListener('click', addNewTask);
             newTaskInput.addEventListener('keyup', (e) => {
                 if (e.key === 'Enter') {
@@ -387,10 +472,198 @@
                 }
             });
 
+            // List Manager Listeners
+            listSelect.addEventListener('change', switchActiveList);
+            addListBtn.addEventListener('click', addNewList);
+            deleteListBtn.addEventListener('click', deleteCurrentList);
+
+            // Button Bar Listeners
+            clearDataBtn.addEventListener('click', clearAllData);
+            exportBtn.addEventListener('click', exportToTxt);
+
+            // Drag & Drop Listeners
+            setupDragDropListeners();
+
+            // --- Initialization ---
+            function initialize() {
+                loadFullState();
+                populateListDropdown();
+                loadCurrentListUI();
+            }
+
+            // --- State Management Functions ---
+
+            /**
+             * Loads the entire app state from local storage.
+             * If no state exists, creates a default list.
+             */
+            function loadFullState() {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    appState = JSON.parse(savedState);
+                } else {
+                    // First time user, create a default state
+                    appState = {
+                        activeListName: "Top 100 Movies of all Time",
+                        lists: {
+                            "My First List": {
+                                sidebar: ["Example Movie 1", "Example Movie 2"],
+                                priority: ["Example Prioritized Movie"]
+                            }
+                        }
+                    };
+                    saveFullState();
+                }
+            }
+
+             /**
+             * Saves the current list's state from the DOM into the appState object,
+             * then persists the entire appState to local storage.
+             */
+            function saveCurrentListState() {
+                if (!appState.activeListName) return; // No active list to save to
+
+                const sidebarTasks = Array.from(sidebarList.querySelectorAll('.card-title'))
+                    .map(span => span.textContent);
+                const priorityTasks = Array.from(priorityList.querySelectorAll('.card-title'))
+                    .map(span => span.textContent);
+
+                appState.lists[appState.activeListName] = {
+                    sidebar: sidebarTasks,
+                    priority: priorityTasks
+                };
+                
+                saveFullState();
+            }
+
+            /**
+             * Saves the entire appState object to local storage.
+             */
+            function saveFullState() {
+                 localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            }
+
+            /**
+             * Populates the dropdown <select> with all available list names.
+             */
+            function populateListDropdown() {
+                listSelect.innerHTML = ''; // Clear existing options
+                const listNames = Object.keys(appState.lists);
+                
+                listNames.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    if (name === appState.activeListName) {
+                        option.selected = true;
+                    }
+                    listSelect.appendChild(option);
+                });
+            }
+
+            /**
+             * Clears and repopulates the UI lists based on the activeListName in appState.
+             */
+            function loadCurrentListUI() {
+                // Clear existing cards
+                sidebarList.innerHTML = '';
+                priorityList.innerHTML = '';
+
+                const activeList = appState.lists[appState.activeListName];
+                if (!activeList) {
+                    console.error("Error: Active list not found in appState.");
+                    // This case might happen if data is corrupted. Create a new one.
+                    appState.activeListName = "New Default List";
+                    appState.lists[appState.activeListName] = { sidebar: [], priority: [] };
+                    populateListDropdown();
+                    return;
+                }
+
+                // Update priority list title
+                priorityListTitle.textContent = `${appState.activeListName} 🎬`;
+
+                // Load sidebar tasks
+                if (activeList.sidebar) {
+                    activeList.sidebar.forEach(title => {
+                        const card = createSidebarCardElement(title);
+                        sidebarList.appendChild(card);
+                    });
+                    sortSidebar();
+                }
+
+                // Load priority tasks
+                if (activeList.priority) {
+                    activeList.priority.forEach(title => {
+                        const card = createPriorityCardElement(title);
+                        priorityList.appendChild(card);
+                    });
+                }
+            }
+            
+            // --- List Management Functions ---
+            
+            function switchActiveList() {
+                const newListName = listSelect.value;
+                appState.activeListName = newListName;
+                saveFullState(); // Save the change in active list
+                loadCurrentListUI(); // Reload the UI for the new list
+            }
+            
+            function addNewList() {
+                const newListName = newListInput.value.trim();
+                if (newListName === '') {
+                    alert('Please enter a name for the new list.');
+                    return;
+                }
+                if (appState.lists[newListName]) {
+                    alert('A list with this name already exists.');
+                    return;
+                }
+                
+                // Create new empty list and set as active
+                appState.lists[newListName] = { sidebar: [], priority: [] };
+                appState.activeListName = newListName;
+                
+                saveFullState();
+                
+                // Update UI
+                populateListDropdown(); // Re-populates, new list will be selected
+                loadCurrentListUI(); // Clears UI and shows new empty list
+                
+                newListInput.value = '';
+            }
+
+            function deleteCurrentList() {
+                 const listToDelete = appState.activeListName;
+                 const listNames = Object.keys(appState.lists);
+                 
+                 if (listNames.length <= 1) {
+                    alert('You cannot delete the last list.');
+                    return;
+                 }
+                 
+                 if (confirm(`Are you sure you want to permanently delete the list "${listToDelete}"?`)) {
+                    // Delete from appState
+                    delete appState.lists[listToDelete];
+                    
+                    // Set a new active list (e.g., the first one remaining)
+                    appState.activeListName = Object.keys(appState.lists)[0];
+                    
+                    saveFullState();
+                    
+                    // Update UI
+                    populateListDropdown();
+                    loadCurrentListUI();
+                 }
+            }
+
+
+            // --- Task & Card Functions ---
+
             function addNewTask() {
                 const taskTitle = newTaskInput.value.trim();
                 if (taskTitle === '') {
-                    alert('Please enter a task title.');
+                    alert('Please enter a movie title.');
                     return;
                 }
 
@@ -400,7 +673,7 @@
                 const allTasks = existingSidebarTasks.concat(existingPriorityTasks);
 
                 if (allTasks.some(el => el.textContent === taskTitle)) {
-                    alert('This task already exists.');
+                    alert('This movie already exists in one of the lists.');
                     return;
                 }
 
@@ -411,10 +684,8 @@
                 newTaskInput.value = '';
                 newTaskInput.focus();
 
-                saveState();
+                saveCurrentListState();
             }
-
-
 
             function createSidebarCardElement(title) {
                 const card = document.createElement('li');
@@ -438,7 +709,7 @@
                     e.stopPropagation();
                     if (confirm(`Permanently delete "${title}"?`)) {
                         card.remove();
-                        saveState();
+                        saveCurrentListState();
                     }
                 });
 
@@ -470,7 +741,7 @@
                 sendToTopBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     priorityList.prepend(card);
-                    saveState();
+                    saveCurrentListState();
                 });
 
                 const sendToBottomBtn = document.createElement('span');
@@ -480,7 +751,7 @@
                 sendToBottomBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     priorityList.appendChild(card);
-                    saveState();
+                    saveCurrentListState();
                 });
 
                 const removeBtn = document.createElement('span');
@@ -517,7 +788,7 @@
                 }
 
                 priorityCard.remove();
-                saveState();
+                saveCurrentListState();
             }
 
             function sortSidebar() {
@@ -528,22 +799,20 @@
                 cards.forEach(card => sidebarList.appendChild(card));
             }
 
-            function addDragListeners(card) {
+            // --- Drag & Drop Functions ---
 
+            function addDragListeners(card) {
                 card.addEventListener('dragstart', (e) => {
                     currentlyDragging = card;
-                    // Store the original list ID
                     currentlyDragging.dataset.originList = card.parentElement.id;
                     card.classList.add('dragging');
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('text/plain', card.dataset.taskTitle);
                 });
 
-
                 card.addEventListener('dragend', () => {
                     if (currentlyDragging) {
                         currentlyDragging.classList.remove('dragging');
-                        // Clean up the origin data
                         if (currentlyDragging.dataset.originList) {
                             delete currentlyDragging.dataset.originList;
                         }
@@ -552,73 +821,63 @@
                 });
             }
 
-            // This is now back to providing visual feedback
-            priorityList.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (!currentlyDragging) return;
+            function setupDragDropListeners() {
+                priorityList.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (!currentlyDragging) return;
 
-                const afterElement = getDragAfterElement(priorityList, e.clientY);
-                if (afterElement == null) {
-                    priorityList.appendChild(currentlyDragging);
-                } else {
-                    priorityList.insertBefore(currentlyDragging, afterElement);
-                }
-            });
+                    const afterElement = getDragAfterElement(priorityList, e.clientY);
+                    if (afterElement == null) {
+                        priorityList.appendChild(currentlyDragging);
+                    } else {
+                        priorityList.insertBefore(currentlyDragging, afterElement);
+                    }
+                });
 
-            // This now handles the final placement and card *replacement*
-            priorityList.addEventListener('drop', (e) => {
-                e.preventDefault();
-                if (!currentlyDragging) return;
+                priorityList.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (!currentlyDragging) return;
 
-                // Check where the card came from
-                const origin = currentlyDragging.dataset.originList;
+                    const origin = currentlyDragging.dataset.originList;
 
-                // Case 1: Dragging from the sidebar
-                if (origin === 'sidebar-list') {
-                    const taskTitle = currentlyDragging.dataset.taskTitle;
-                    // Create the new card *with* buttons
-                    const newPriorityCard = createPriorityCardElement(taskTitle);
+                    if (origin === 'sidebar-list') {
+                        const taskTitle = currentlyDragging.dataset.taskTitle;
+                        const newPriorityCard = createPriorityCardElement(taskTitle);
+                        priorityList.replaceChild(newPriorityCard, currentlyDragging);
+                    }
 
-                    // Replace the card (which was moved by dragover) with the new one
-                    priorityList.replaceChild(newPriorityCard, currentlyDragging);
+                    if (currentlyDragging) {
+                        currentlyDragging.classList.remove('dragging');
+                        if (currentlyDragging.dataset.originList) {
+                            delete currentlyDragging.dataset.originList;
+                        }
+                    }
+                    currentlyDragging = null;
+                    saveCurrentListState();
+                });
 
-                    // Case 2: Re-ordering within the priority list
-                } else if (origin === 'priority-list') {
-                    // The 'dragover' already moved it, so we just let it be
-                }
+                sidebar.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
 
-                // Cleanup
-                currentlyDragging.classList.remove('dragging');
-                if (currentlyDragging.dataset.originList) {
-                    delete currentlyDragging.dataset.originList;
-                }
-                currentlyDragging = null;
-                saveState(); // Save after any drop/re-order
-            });
+                sidebar.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (!currentlyDragging) return;
 
-            // Listeners for the *ENTIRE* Sidebar (for removal)
-            sidebar.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-            });
+                    if (currentlyDragging.dataset.originList === 'priority-list') {
+                        moveCardToSidebar(currentlyDragging);
+                    }
 
-
-            sidebar.addEventListener('drop', (e) => {
-                e.preventDefault();
-                if (!currentlyDragging) return;
-
-                // Only act if the card came from the priority list
-                if (currentlyDragging.dataset.originList === 'priority-list') {
-                    moveCardToSidebar(currentlyDragging);
-                }
-
-                // Cleanup
-                currentlyDragging.classList.remove('dragging');
-                if (currentlyDragging.dataset.originList) {
-                    delete currentlyDragging.dataset.originList;
-                }
-                currentlyDragging = null;
-            });
+                    if (currentlyDragging) {
+                        currentlyDragging.classList.remove('dragging');
+                        if (currentlyDragging.dataset.originList) {
+                            delete currentlyDragging.dataset.originList;
+                        }
+                    }
+                    currentlyDragging = null;
+                });
+            }
 
             function getDragAfterElement(container, y) {
                 const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
@@ -633,63 +892,25 @@
                 }, { offset: Number.NEGATIVE_INFINITY }).element;
             }
 
-            function saveState() {
-                const sidebarTasks = Array.from(sidebarList.querySelectorAll('.card-title'))
-                    .map(span => span.textContent);
-                const priorityTasks = Array.from(priorityList.querySelectorAll('.card-title'))
-                    .map(span => span.textContent);
-                const state = {
-                    sidebar: sidebarTasks,
-                    priority: priorityTasks
-                };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            }
+            // --- Utility Functions ---
 
-            function loadState() {
-                const savedState = localStorage.getItem(STORAGE_KEY);
-                if (!savedState) {
-                    return false; // No state found
-                }
-
-                const state = JSON.parse(savedState);
-
-                if (state.sidebar) {
-                    state.sidebar.forEach(title => {
-                        const card = createSidebarCardElement(title);
-                        sidebarList.appendChild(card);
-                    });
-                    sortSidebar();
-                }
-
-                if (state.priority) {
-                    state.priority.forEach(title => {
-                        const card = createPriorityCardElement(title);
-                        priorityList.appendChild(card);
-                    });
-                }
-
-                return true; // State was loaded
-            }
-
-            // Clear All Data
-            clearDataBtn.addEventListener('click', () => {
-                if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
+            function clearAllData() {
+                if (confirm('Are you sure you want to clear ALL saved data for ALL lists? This cannot be undone.')) {
                     localStorage.removeItem(STORAGE_KEY);
                     location.reload();
                 }
-            });
-
-            exportBtn.addEventListener('click', exportToTxt);
+            }
 
             function exportToTxt() {
                 const priorityCards = priorityList.querySelectorAll('.card-title');
+                const listName = appState.activeListName || "Movie List";
 
                 if (priorityCards.length === 0) {
-                    alert('List is empty. Nothing to export.');
+                    alert('Current list is empty. Nothing to export.');
                     return;
                 }
 
-                let fileContent = "Movie List\n";
+                let fileContent = `${listName}\n`;
                 fileContent += "=====================\n\n";
 
                 const taskTitles = Array.from(priorityCards)
@@ -700,7 +921,10 @@
                 const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = 'priority-list.txt';
+                
+                // Create a safe filename
+                const safeFilename = listName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                link.download = `${safeFilename}-list.txt`;
 
                 document.body.appendChild(link);
                 link.click();
@@ -708,12 +932,8 @@
                 URL.revokeObjectURL(link.href);
             }
 
-            const stateLoaded = loadState();
-
-            if (!stateLoaded) {
-                sortSidebar();
-                saveState();
-            }
+            // --- START THE APP ---
+            initialize();
 
         });
     </script>
